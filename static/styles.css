@@ -24,9 +24,7 @@ body {
     border: 1px #ddd solid;
     outline: none;
 }
-#printable {
-    display: none;
-}
+
 
 @media (prefers-color-scheme: dark) {
     body {
@@ -43,9 +41,5 @@ body {
     .container {
         display: none;
     }
-    #printable {
-        display: block;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
+
 }

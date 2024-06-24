@@ -1,5 +1,7 @@
 ## Minimalist Web Notepad Golang
 
+## 不会Go只是根据自己需求在原作者代码上稍微改了下
+
 Minimalist Web Notepad Golang重置版 
 
 最近我在github发现了一个不错的PHP项目[Minimalist Web Notepad](https://github.com/pereorga/minimalist-web-notepad)
