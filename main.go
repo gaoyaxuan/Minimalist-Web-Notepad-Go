@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"github.com/robfig/cron/v3"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -99,6 +101,25 @@ func main() {
 
 	})
 
+	// 新建一个定时任务对象,定时清理旧的文件
+	// 根据cron表达式进行时间调度，cron可以精确到秒，大部分表达式格式也是从秒开始。
+	//精确到秒
+	crontab := cron.New(cron.WithSeconds())
+	//定义定时器调用的任务函数
+	task := func() {
+		fmt.Println("执行删除过期文件", time.Now())
+		err := deleteOldFiles()
+		if err != nil {
+			return
+		}
+	}
+	//定时任务
+	spec := "0 0 1 * * ?" //cron表达式，每五秒一次
+	// 添加定时任务,
+	crontab.AddFunc(spec, task)
+	// 启动定时器
+	crontab.Start()
+
 	var port string
 
 	flag.StringVar(&port, "p", ":80", "port to listen on")
@@ -116,4 +137,30 @@ func randomString(length int) string {
 		b[i] = charset[rand.Intn(len(charset))]
 	}
 	return string(b)
+}
+
+// 递归删除旧文件
+func deleteOldFiles() error {
+	// 替换为你的目录路径
+	dirPath := "./_tmp_/"
+	// 当前时间减去30天
+	cutOffDate := time.Now().AddDate(0, 0, -1)
+
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && (info.Size() == 0 || info.ModTime().Before(cutOffDate)) {
+			err := os.Remove(path)
+			if err != nil {
+				fmt.Printf("failed to remove file: %s\n", err)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("error walking the path: %v\n", err)
+	}
+	return nil
 }
