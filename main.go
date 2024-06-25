@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/robfig/cron/v3"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -16,21 +17,22 @@ import (
 
 func main() {
 	// 创建一个默认的路由引擎
-	r := gin.Default()
-	r.Static("/static", "./static")
-	r.LoadHTMLGlob("index.html")
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Static("/static", "./static")
+	router.LoadHTMLGlob("index.html")
 
-	var random_int int
+	var randomInt int
 
-	flag.IntVar(&random_int, "l", 10, "random int long")
+	flag.IntVar(&randomInt, "l", 10, "random int long")
 
 	// 当访问根目录时，生成一个随机字符串，并重定向到"/random"路径
-	r.GET("/", func(c *gin.Context) {
-		randomString := randomString(random_int)
+	router.GET("/", func(c *gin.Context) {
+		randomString := randomString(randomInt)
 		c.Redirect(http.StatusFound, "/"+randomString)
 	})
 
-	r.GET("/:path", func(c *gin.Context) {
+	router.GET("/:path", func(c *gin.Context) {
 		rand.Seed(time.Now().UnixNano())
 		path := c.Param("path")
 		filePath := "./_tmp_/" + path
@@ -69,9 +71,9 @@ func main() {
 		})
 	})
 
-	r.POST("/:path", func(c *gin.Context) {
+	router.POST("/:path", func(c *gin.Context) {
 		// 读取POST请求的内容
-		body, err := ioutil.ReadAll(c.Request.Body)
+		body, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error reading request body"})
 			return
@@ -86,11 +88,15 @@ func main() {
 		// 创建文件夹，如果不存在的话
 		dir := "./_tmp_/"
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			os.Mkdir(dir, 0755)
+			err := os.Mkdir(dir, 0755)
+			if err != nil {
+				return
+			}
 		}
 
 		// 写入文件
-		err = ioutil.WriteFile(filePath, body, 0644)
+		//err = ioutil.WriteFile(filePath, body, 0644)
+		err = os.WriteFile(filePath, body, 0644)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error writing to file"})
 			return
@@ -122,11 +128,10 @@ func main() {
 
 	var port string
 
-	flag.StringVar(&port, "p", ":80", "port to listen on")
+	flag.StringVar(&port, "p", "80", "port to listen on")
 
 	flag.Parse()
-
-	r.Run(port)
+	router.Run("0.0.0.0:" + port)
 }
 
 // randomString 生成指定长度的随机字符串
