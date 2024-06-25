@@ -1,0 +1,12 @@
+services:
+  Minimalist-Web-Notepad-Go:
+    image: ghcr.io/gaoyaxuan/minimalist-web-notepad-go:latest
+    container_name: minimalist-web-notepad-go
+    restart: always
+    network_mode: bridge
+    volumes:
+      - ./data:/app/_tmp_
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "8889:80"
