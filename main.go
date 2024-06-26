@@ -1,39 +1,45 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"github.com/robfig/cron/v3"
 	"io"
-	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
 func main() {
-	// 创建一个默认的路由引擎
+	port := getEnvOrDefaultString("PORT", "80")
+	fileMaxDay := getEnvOrDefaultInt("FILE_MAX_DAY", 30)
+	randomStrLen := getEnvOrDefaultInt("STR_LEN", 10)
+	spec := getEnvOrDefaultString("SPEC", "*/5 * * * * ?")
+
+	// 设置 Gin 为生产模式
 	gin.SetMode(gin.ReleaseMode)
+	// 创建一个默认的路由引擎
 	router := gin.New()
+	// 使用日志中间件和恢复中间件
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+
 	router.Static("/static", "./static")
 	router.LoadHTMLGlob("index.html")
 
-	var randomInt int
-
-	flag.IntVar(&randomInt, "l", 10, "random int long")
-
 	// 当访问根目录时，生成一个随机字符串，并重定向到"/random"路径
 	router.GET("/", func(c *gin.Context) {
-		randomString := randomString(randomInt)
-		c.Redirect(http.StatusFound, "/"+randomString)
+		randomStr := randomString(randomStrLen)
+		c.Redirect(http.StatusFound, "/"+randomStr)
 	})
 
 	router.GET("/:path", func(c *gin.Context) {
-		rand.Seed(time.Now().UnixNano())
 		path := c.Param("path")
 		filePath := "./_tmp_/" + path
 
@@ -56,7 +62,7 @@ func main() {
 			}
 		}
 
-		fileContent, err := ioutil.ReadFile(filePath)
+		fileContent, err := os.ReadFile(filePath)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
@@ -95,7 +101,6 @@ func main() {
 		}
 
 		// 写入文件
-		//err = ioutil.WriteFile(filePath, body, 0644)
 		err = os.WriteFile(filePath, body, 0644)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error writing to file"})
@@ -113,59 +118,104 @@ func main() {
 	crontab := cron.New(cron.WithSeconds())
 	//定义定时器调用的任务函数
 	task := func() {
-		fmt.Println("执行删除过期文件", time.Now())
-		err := deleteOldFiles()
+		log.Println("执行删除过期文件")
+		err := deleteOldFiles("./_tmp_/", fileMaxDay)
 		if err != nil {
 			return
 		}
 	}
 	//定时任务
-	spec := "0 0 1 * * ?" //cron表达式，每五秒一次
 	// 添加定时任务,
-	crontab.AddFunc(spec, task)
+	_, err := crontab.AddFunc(spec, task)
+	if err != nil {
+		log.Fatalf("添加定时任务失败: %s\n", err)
+		return
+	}
+
 	// 启动定时器
 	crontab.Start()
 
-	var port string
-
-	flag.StringVar(&port, "p", "80", "port to listen on")
-
-	flag.Parse()
-	router.Run("0.0.0.0:" + port)
+	err = router.Run("0.0.0.0:" + port)
+	if err != nil {
+		log.Fatalf("服务启动失败: %v\n", err)
+		return
+	} else {
+		log.Println("服务启动成功")
+	}
 }
 
 // randomString 生成指定长度的随机字符串
 func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	seed := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(seed)
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
+		b[i] = charset[r.Intn(len(charset))]
 	}
 	return string(b)
 }
 
-// 递归删除旧文件
-func deleteOldFiles() error {
-	// 替换为你的目录路径
-	dirPath := "./_tmp_/"
+// 递归删除旧文件,
+func deleteOldFiles(dirPath string, days int) error {
 	// 当前时间减去30天
-	cutOffDate := time.Now().AddDate(0, 0, -1)
+	cutOffDate := time.Now().AddDate(0, 0, -days)
+	emptyFileCutOffDate := time.Now().AddDate(0, 0, -3)
 
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && (info.Size() == 0 || info.ModTime().Before(cutOffDate)) {
-			err := os.Remove(path)
-			if err != nil {
-				fmt.Printf("failed to remove file: %s\n", err)
+		if !info.IsDir() {
+			// 空文件 超过三天的直接删除(有可能清理的时候空文件正在被使用)
+			if info.Size() == 0 && info.ModTime().Before(emptyFileCutOffDate) {
+				err := os.Remove(path)
+				if err != nil {
+					log.Fatalf("failed to remove empty file: %s\n", err)
+				}
+				// 不是空的需要等到达到的天数
+			} else if info.ModTime().Before(cutOffDate) {
+				err := os.Remove(path)
+				if err != nil {
+					log.Fatalf("failed to remove file: %s\n", err)
+				}
 			}
 		}
+		//else {
+		//	err := deleteOldFiles(path, days)
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
 		return nil
 	})
 
 	if err != nil {
-		fmt.Printf("error walking the path: %v\n", err)
+		log.Printf("error walking the path: %v", err)
 	}
 	return nil
+}
+
+// getEnvOrDefaultString 获取环境变量的值，如果未设置则返回默认值
+func getEnvOrDefaultString(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+// getEnvOrDefaultInt 获取环境变量的值，如果未设置则返回默认的整数值
+func getEnvOrDefaultInt(key string, defaultValue int) int {
+	strValue := os.Getenv(key)
+	if strValue == "" {
+		return defaultValue
+	}
+
+	value, err := strconv.Atoi(strValue)
+	if err != nil {
+		log.Printf("环境变量 %s 的值无法转换为整数，默认使用默认值 %d", key, defaultValue)
+		return defaultValue
+	}
+
+	return value
 }

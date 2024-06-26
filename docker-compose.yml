@@ -4,9 +4,20 @@ services:
     container_name: minimalist-web-notepad-go
     restart: always
     network_mode: bridge
+    environment:
+      # 设置端口号为 80
+      # - PORT=80
+      # 路径随机字符串长度
+      - STR_LEN=10
+      # 数据文件保存的时间(天)
+      - FILE_MAX_DAY=30
+      # 定时任务表达式 每天凌晨一点执行
+      - SPEC="0 0 1 * * ?"
     volumes:
+      #  数据位置
       - ./data:/app/_tmp_
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "8889:80"
+      # 默认映射到8080端口
+      - "8080:80"

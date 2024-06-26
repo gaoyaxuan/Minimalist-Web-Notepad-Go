@@ -12,13 +12,14 @@ Minimalist Web Notepad Golang重置版
 
 ## 运行教程
 ```
-Minimalist-Web-Notepad-Go -l 随机字符长度 -p :端口号
+docker run -d -it --rm \
+--name minimalist-web-notepad-go \
+-eSTR_LEN=8  \
+-p  8080:80/tcp  \
+ghcr.io/gaoyaxuan/minimalist-web-notepad-go:latest 
 ```
-#### 举个例子
-```
-Minimalist-Web-Notepad-Go -l 8 -p :8080
+或者下载[docker-compose.yml](docker-compose.yml)  docker-compose up -d 
 
-此时就会生成8位的随机字符，并监听8080端口 例如 https://example.com:8080/12345678 
 ```
 ## 使用方法
 
