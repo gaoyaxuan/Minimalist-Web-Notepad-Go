@@ -11,12 +11,11 @@ COPY --from=build /src/Minimalist-Web-Notepad-Go /app/Minimalist-Web-Notepad-Go
 COPY --from=build /src/index.html  /app/
 COPY --from=build /src/static/*  /app/static/
 RUN set -ex \
-    && chmod +x /app/Minimalist-Web-Notepad-Go \
+    && chmod 544 /app/Minimalist-Web-Notepad-Go \
     &&  chmod 444 /app/index.html \
     && chmod -R 444 /app/static/*
 
 
 
 ENV TZ=Asia/Shanghai
-ENTRYPOINT [ "/app/Minimalist-Web-Notepad-Go" ]
-CMD [ "-l", "10", "-p","80" ]
+CMD [ "/app/Minimalist-Web-Notepad-Go" ]
