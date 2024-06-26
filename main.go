@@ -20,7 +20,7 @@ func main() {
 	port := getEnvOrDefaultString("PORT", "80")
 	fileMaxDay := getEnvOrDefaultInt("FILE_MAX_DAY", 30)
 	randomStrLen := getEnvOrDefaultInt("STR_LEN", 10)
-	spec := getEnvOrDefaultString("SPEC", "*/5 * * * * ?")
+	spec := getEnvOrDefaultString("SPEC", "0 0 1 * * ?")
 
 	// 设置 Gin 为生产模式
 	gin.SetMode(gin.ReleaseMode)

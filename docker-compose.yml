@@ -12,7 +12,7 @@ services:
       # 数据文件保存的时间(天)
       - FILE_MAX_DAY=30
       # 定时任务表达式 每天凌晨一点执行
-      - SPEC="0 0 1 * * ?"
+      - SPEC=0 0 1 * * ?
     volumes:
       #  数据位置
       - ./data:/app/_tmp_
