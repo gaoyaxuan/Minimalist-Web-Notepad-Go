@@ -10,9 +10,10 @@ WORKDIR /app
 COPY --from=build /src/Minimalist-Web-Notepad-Go /app/Minimalist-Web-Notepad-Go
 COPY --from=build /src/index.html  /app/
 COPY --from=build /src/static/*  /app/static/
-RUN set -ex \
+RUN apk --no-cache --no-progress add tzdata \
+    && set -ex \
     && chmod 544 /app/Minimalist-Web-Notepad-Go \
-    &&  chmod 444 /app/index.html \
+    && chmod 444 /app/index.html \
     && chmod -R 444 /app/static/*
 
 
