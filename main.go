@@ -157,7 +157,7 @@ func randomString(length int) string {
 
 // 递归删除旧文件,
 func deleteOldFiles(dirPath string, days int) error {
-	// 当前时间减去30天
+	// 当前时间减去
 	cutOffDate := time.Now().AddDate(0, 0, -days)
 	emptyFileCutOffDate := time.Now().AddDate(0, 0, -3)
 
